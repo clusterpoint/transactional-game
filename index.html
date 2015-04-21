@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+	<title>Transactional Game</title>
+</head>
+<body>
+
+Current balance:
+<div id="balance">-</div>
+
+<button onclick="socket.emit('transaction', 20)">Add 20</button>
+<button onclick="socket.emit('transaction', -10)">Substract 10</button>
+
+<script src="libs/jquery.min.js"></script>
+<script src="libs/socket.io-1.3.5.js"></script>
+<script>
+
+	var SERVER_URL = ''; // http://localhost
+	var SERVER_PORT = 8080;
+	var socket;
+
+
+
+	$(document).ready(function () {
+
+		socket = io(SERVER_URL + ':' + SERVER_PORT);
+
+		socket.on('balance_changed', function (current_balance) {
+			console.info('balance_changed: ', current_balance);
+			$('#balance').text(current_balance);
+		});
+
+		socket.on('new_user_connected', function (obj) {
+			console.info('new_user_connected: ', obj.user_id);
+		});
+
+	});
+
+</script>
+
+</body>
+</html>

@@ -28,35 +28,24 @@
 			<h3>
 				<small>With Transactions</small>
 				<br/>
-				200
+				<div id="val_with_transaction">200</div>
 			</h3>
 		</div>
 		<div class="col-xs-6 text-center">
 			<h3>
 				<small>Without Transactions</small>
 				<br/>
-				200
+				<div id="val_without_transaction">200</div>
 			</h3>
 		</div>
 		<div class="clearfix"></div>
 		<hr/>
-
-		<div class="col-lg-2 col-md-3 col-sm-6 col-xs-12 player-container">
-			<button class="btn btn-success btn-block">
-				User <span class="label label-primary">1</span>
-			</button>
-		</div>
+	</div>
+	<div class="row" id="players">
 
 
 	</div>
 </div>
-
-
-Current balance:
-<div id="balance">-</div>
-
-<button onclick="socket.emit('transaction', 20)">Add 20</button>
-<button onclick="socket.emit('transaction', -10)">Substract 10</button>
 
 <script src="assets/js/jquery-1.11.2.min.js"></script>
 <script src="assets/js/bootstrap.min.js"></script>
@@ -65,23 +54,109 @@ Current balance:
 
 	var SERVER_URL = ''; // http://localhost
 	var SERVER_PORT = 8080;
-	var socket;
-
+	var socket,
+		UID;
 
 	$(document).ready(function () {
 
+		var clients = [];
+
 		socket = io(SERVER_URL + ':' + SERVER_PORT);
 
-		socket.on('balance_changed', function (current_balance) {
-			console.info('balance_changed: ', current_balance);
-			$('#balance').text(current_balance);
+		socket.on('init_new_user', function () {
+			var uid = getCookie('user_id');
+			if (uid !== "") {
+				socket.emit('already_have_id', uid);
+				UID = uid;
+			} else {
+				socket.emit('give_me_id');
+			}
 		});
 
-		socket.on('new_user_connected', function (obj) {
-			console.info('new_user_connected: ', obj.user_id);
+		socket.on('set_new_id', function (id) {
+			setCookie('user_id', id, 60);
+			UID = id;
 		});
 
+		socket.on('update_user_list', function (obj) {
+			//Object::obj {
+			//	id		: id,
+			//	balance	: balance
+			// }
+
+			var arr = obj.clients;
+			console.log('Received client array: ');
+			console.log(arr);
+			var diff = $(clients).not(arr).get();
+			diff.forEach(function (value, key) {
+				$('#'+value.id).parent().remove();
+			});
+			arr.forEach(function(value, key) {
+				if (value.id !== UID) {
+					if (!$('#'+value.id)) {
+						$('#'+value.id).find('span').innerText(value.balance);
+					} else {
+						$('#players').append(generateTemplate(value));
+					}
+				}
+			});
+
+			clients = arr;
+			console.info('update_user_list::updated array ');
+			console.info(arr);
+		});
+
+		socket.on('user_updated', function (user){
+			if ($('#'+user.id).length) {
+				console.log($('#'+user.id));
+				$('#'+user.id).find('span').text(user.balance);
+			}
+		});
+
+
+	}).on('click', '.user_btns', function () {
+		console.log($(this).attr('id'));
+		var data = {};
+		data.receiver = $(this).attr('id');
+		data.quantity = 10;
+		socket.emit('transfer_value_to', data, UID);
 	});
+
+	function generateTemplate(user) {
+		return '<div class="col-lg-2 col-md-3 col-sm-6 col-xs-12 player-container">' +
+			'<button class="btn btn-success btn-block user_btns" id="'+user.id+'">' +
+			'User <span class="label label-primary">'+user.balance+'</span></button></div>';
+	}
+
+	/************************************/
+	/***************COOKIES**************/
+	/*****************JS*****************/
+	function setCookie(cname, cvalue, exminutes) {
+		var d = new Date();
+		d.setTime(d.getTime() + (exminutes*60*1000));
+		var expires = "expires="+d.toUTCString();
+		document.cookie = cname + "=" + cvalue + "; " + expires;
+	}
+
+	function getCookie(cname) {
+		var name = cname + "=";
+		var ca = document.cookie.split(';');
+		for(var i=0; i<ca.length; i++) {
+			var c = ca[i];
+			while (c.charAt(0)==' ') c = c.substring(1);
+			if (c.indexOf(name) == 0) return c.substring(name.length, c.length);
+		}
+		return "";
+	}
+
+	function updateCookie(cname) {
+		var cookie = getCookie(cname);
+		if (cookie !== "") {
+			setCookie(cname, cookie, 120);
+		}
+	}
+
+	/***************END OF JS*******************/
 
 </script>
 
